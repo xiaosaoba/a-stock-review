@@ -1,0 +1,35 @@
+# 密钥与数据
+.env
+reports/
+*.out.txt
+*.txt
+*.png
+*.log
+qrcode.png
+
+# 诊断/部署临时脚本（非核心源码）
+diag_*
+test_*
+check_*
+verify_*
+deploy_*
+update_server.py
+remove_*
+setup_*
+fetch_qrcode.py
+refresh_qrcode*.py
+config_onebot.py
+auto_login.py
+napcat_token.py
+debug_extra.py
+analyze_skill*
+final_verify.py
+qq_notify.py
+notify.py
+skill_rec_out.json
+_chk.js
+
+# Python
+__pycache__/
+*.pyc
+.venv/

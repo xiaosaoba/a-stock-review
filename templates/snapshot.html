@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股智能复盘 {{ rep.date }}</title>
+<style>
+  :root { --bg:#0d1117; --card:#161b22; --card2:#1c2333; --text:#e6edf3; --text2:#8b949e; --accent:#58a6ff; --accent2:#f0883e; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:"Microsoft YaHei",-apple-system,sans-serif; padding:20px; }
+  .wrap { max-width:860px; margin:0 auto; }
+  h1 { font-size:22px; background:linear-gradient(90deg,#58a6ff,#f0883e); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .date { color:var(--text2); font-size:13px; margin:4px 0 18px; }
+  .card { background:var(--card); border:1px solid #30363d; border-radius:10px; padding:16px; margin-bottom:14px; }
+  h2 { font-size:15px; color:var(--accent); margin-bottom:10px; }
+  .score { font-size:26px; font-weight:700; color:var(--accent2); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-top:10px; }
+  .stat { background:var(--card2); border-radius:8px; padding:10px 12px; }
+  .stat .k { color:var(--text2); font-size:12px; }
+  .stat .v { font-size:16px; font-weight:700; margin-top:3px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:6px; }
+  th, td { padding:6px 8px; text-align:left; border-bottom:1px solid #21262d; white-space:nowrap; }
+  th { color:var(--text2); font-weight:600; background:#161b22; }
+  .num { text-align:right; }
+  .line { margin:5px 0; line-height:1.8; color:var(--text2); font-size:13px; }
+  .line b { color:var(--accent2); }
+  .views li { margin:4px 0 4px 18px; line-height:1.7; font-size:13px; }
+  .foot { color:var(--text2); font-size:11px; text-align:center; margin:18px 0 30px; line-height:1.8; }
+  .pill { display:inline-block; background:rgba(88,166,255,.15); color:#58a6ff; padding:1px 7px; border-radius:10px; font-size:11px; font-weight:700; }
+  .pill-warn { background:rgba(240,136,62,.15); color:#f0883e; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>A股智能复盘</h1>
+  <div class="date">{{ rep.date }} · 数据来源：东方财富/腾讯/问财 · 仅供研究参考</div>
+
+  {% set ai = rep.ai or {} %}
+  {% set md = rep.market or {} %}
+  {% set sel = rep.selection or {} %}
+  {% set sk = rep.skill_recommend or {} %}
+  {% set ud = md.updown or {} %}
+  {% set ml = sel.mainline or {} %}
+
+  <div class="card">
+    <h2>情绪与周期</h2>
+    <div class="score">{{ ai.score or "--" }}<span style="font-size:13px;color:var(--text2)"> / 10</span></div>
+    <div class="line">情绪周期：<b>{{ ai.cycle or "--" }}</b></div>
+  </div>
+
+  <div class="card">
+    <h2>大盘指数</h2>
+    <div class="grid">
+      {% for x in md.indexes or [] %}
+      <div class="stat"><div class="k">{{ x.name }}</div><div class="v">{{ "%.2f"|format(x.price) }}</div><div class="line" style="margin:0">{{ "+" if x.change_pct > 0 else "" }}{{ x.change_pct }}%</div></div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>市场概况</h2>
+    <div class="grid">
+      <div class="stat"><div class="k">涨停</div><div class="v" style="color:#3fb950">{{ md.zt_count }}</div></div>
+      <div class="stat"><div class="k">跌停</div><div class="v" style="color:#f85149">{{ md.dt_count }}</div></div>
+      <div class="stat"><div class="k">最高连板</div><div class="v">{{ md.max_lianban or 0 }} 板</div></div>
+      <div class="stat"><div class="k">炸板率</div><div class="v">{{ md.broken_rate }}%</div></div>
+      <div class="stat"><div class="k">上涨</div><div class="v" style="color:#3fb950">{{ ud.up or "--" }}</div></div>
+      <div class="stat"><div class="k">下跌</div><div class="v" style="color:#f85149">{{ ud.down or "--" }}</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>当日最强主线</h2>
+    <div class="line">主线：<b>{{ ml.name or "--" }}</b>（覆盖涨停 {{ ml.zt_count or 0 }} 家 / 共 {{ ml.all_zt_count or 0 }} 家涨停 · 最高 {{ ml.lb_max or 0 }} 板）</div>
+    <div class="line">代表个股：{{ ml.reps or "--" }}</div>
+  </div>
+
+  <div class="card">
+    <h2>明日选股 · 最强主线 × 1/2连板（评分排序）</h2>
+    <div class="line" style="color:var(--text2)">规则：{{ sel.rules or "" }}；评分=主线热度25+连板15+封单25+首封20+换手15</div>
+    {% for grp, rows in [("① 当日 1 连板 ∩ 最强主线", sel.candidates_1b or []), ("② 当日 2 连板 ∩ 最强主线", sel.candidates_2b or [])] %}
+    <div class="line"><b>{{ grp }}（{{ rows|length }} 只）</b></div>
+    {% if rows %}
+    <table>
+      <tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th class="num">评分</th><th>题材</th></tr>
+      {% for x in rows %}
+      <tr>
+        <td>{{ x.name }}<br><span style="color:var(--text2);font-size:11px">{{ x.code }}</span></td>
+        <td>{{ x.first_limit_time or "--" }}</td>
+        <td>{{ x.seal_amount_fmt or "--" }}</td>
+        <td>{{ x.turnover_rate }}%</td>
+        <td class="num"><span class="pill{% if x.score and x.score < 60 %}-warn{% endif %}">{{ x.score or "--" }}</span></td>
+        <td style="color:var(--text2)">{{ x.reason or "--" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="line">无符合个股</div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>每日荐股 · 一进二打板战法</h2>
+    {% if sk.ok %}
+    <div class="line">技能：{{ (sk.skill or {}).name }} v{{ (sk.skill or {}).version }} · 共 {{ sk.total_first }} 只首板</div>
+    <div class="line"><b>① 精选候选（4 步全过，评分排序）</b></div>
+    {% if sk.candidates %}
+    <table>
+      <tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>市值</th><th>60日</th><th class="num">评分</th><th>题材</th></tr>
+      {% for x in sk.candidates %}
+      <tr>
+        <td>{{ x.name }}<br><span style="color:var(--text2);font-size:11px">{{ x.code }}</span></td>
+        <td>{{ x.first_limit_time or "--" }}</td>
+        <td>{{ x.seal_amount_fmt or "--" }}</td>
+        <td>{{ x.turnover_rate }}%</td>
+        <td>{{ x.mkt_cap }}亿</td>
+        <td>{{ x.pct_60 }}%</td>
+        <td class="num"><span class="pill{% if x.score and x.score < 70 %}-warn{% endif %}">{{ x.score or "--" }}</span></td>
+        <td style="color:var(--text2)">{{ x.reason or "--" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="line">今日无 4 步全过候选</div>
+    {% endif %}
+    <div class="line"><b>② 关注池（3 步通过，待次日竞价确认）</b></div>
+    {% if sk.watchlist %}
+    <table>
+      <tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>市值</th><th class="num">评分</th></tr>
+      {% for x in sk.watchlist %}
+      <tr>
+        <td>{{ x.name }}<br><span style="color:var(--text2);font-size:11px">{{ x.code }}</span></td>
+        <td>{{ x.first_limit_time or "--" }}</td>
+        <td>{{ x.seal_amount_fmt or "--" }}</td>
+        <td>{{ x.turnover_rate }}%</td>
+        <td>{{ x.mkt_cap }}亿</td>
+        <td class="num"><span class="pill">{{ x.score or "--" }}</span></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="line">今日无关注股</div>
+    {% endif %}
+    <div class="line" style="margin-top:8px"><b>盘中信号：</b>{{ sk.signals or "" }}</div>
+    <div class="line"><b>风控：</b>{{ sk.risk or "" }}</div>
+    <div class="line"><b>避坑：</b>{{ sk.pitfalls or "" }}</div>
+    {% else %}
+    <div class="line">{{ sk.note or "暂无荐股数据" }}</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>次日竞价入手提示</h2>
+    <div class="line">{{ (rep.signal or {}).conditions or "次日 09:25-09:31 竞价结果出来后判定" }}</div>
+  </div>
+
+  <div class="card">
+    <h2>核心观点</h2>
+    <ul class="views">
+      {% for v in ai.views or [] %}<li>{{ v }}</li>{% endfor %}
+    </ul>
+    {% set st = ai.strategy or {} %}
+    <div class="line" style="margin-top:8px">机会：<b>{{ st.opportunity or "--" }}</b></div>
+    <div class="line">风险：<b style="color:#f85149">{{ st.risk or "--" }}</b></div>
+    <div class="line">建议：{{ st.advice or "--" }}</div>
+  </div>
+
+  <div class="foot">数据来源：东方财富/腾讯/问财 · 本页为每日复盘快照<br>仅供参考，不构成投资建议 · {{ rep.created_at or "" }}</div>
+</div>
+</body>
+</html>

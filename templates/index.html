@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A股智能复盘</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card2: #1c2333;
+    --border: #2d333b;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --up: #f85149;
+    --down: #3fb950;
+    --accent: #f0883e;
+    --accent2: #58a6ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* 顶部 */
+  .header { text-align: center; padding: 18px 0 6px; }
+  .header h1 {
+    font-size: 28px; font-weight: 700;
+    background: linear-gradient(90deg, #f0883e, #f6c453);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .sub { color: var(--text2); font-size: 13px; margin-top: 4px; }
+  .header .sub span { color: var(--accent2); }
+
+  /* 生成区 */
+  .gen-box {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; margin-top: 16px;
+    display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+  }
+  .gen-box .date-label { color: var(--text2); font-size: 14px; }
+  .gen-box input[type="date"] {
+    background: var(--card2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; font-size: 14px;
+  }
+  .btn {
+    background: linear-gradient(135deg, #f0883e, #f6a04a); color: #1a1206;
+    border: none; border-radius: 8px; padding: 10px 22px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .btn:hover { opacity: .88; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+  .btn.small { padding: 8px 16px; font-size: 13px; }
+  .share-box { display: none; justify-content: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .share-box.show { display: flex; }
+  .share-tip { width: 100%; text-align: center; color: var(--text2); font-size: 12px; }
+
+  /* 进度条 */
+  .progress-bar { display: none; margin-top: 14px; }
+  .progress-bar.show { display: block; }
+  .pbar-track { background: var(--card2); height: 6px; border-radius: 3px; overflow: hidden; }
+  .pbar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #f0883e, #f6c453); transition: width .3s; }
+  .pbar-msg { color: var(--text2); font-size: 13px; margin-top: 8px; text-align: center; }
+
+  /* 通知 */
+  .notice { display: none; margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 14px; }
+  .notice.show { display: block; }
+  .notice.error { background: rgba(248,81,73,.12); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+  .notice.ok { background: rgba(63,185,80,.1); color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+
+  /* 卡片通用 */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; margin-top: 16px;
+  }
+  .card h2 {
+    font-size: 15px; color: var(--accent); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2::before { content: ""; width: 4px; height: 14px; background: var(--accent); border-radius: 2px; }
+
+  /* 指数 */
+  .idx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .idx-card {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 10px; padding: 12px;
+  }
+  .idx-card .name { color: var(--text2); font-size: 12px; }
+  .idx-card .price { font-size: 22px; font-weight: 700; margin: 4px 0 2px; }
+  .idx-card .pct { font-size: 13px; font-weight: 600; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .flat { color: var(--text2); }
+
+  /* 市场概况 */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+  .metric {
+    background: var(--card2); border-radius: 10px; padding: 12px; text-align: center;
+  }
+  .metric .v { font-size: 20px; font-weight: 700; }
+  .metric .k { color: var(--text2); font-size: 12px; margin-top: 2px; }
+
+  /* 情绪 */
+  .emotion { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .ring { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .num {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; font-size: 26px; font-weight: 700;
+  }
+  .ring .num small { font-size: 11px; color: var(--text2); font-weight: 400; }
+  .emotion .txt { flex: 1; min-width: 220px; }
+  .emotion .cycle { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .emotion .reason { color: var(--text2); font-size: 13px; line-height: 1.7; margin-top: 6px; }
+
+  /* 观点 */
+  .views li { list-style: none; font-size: 14px; line-height: 1.8; padding: 6px 0 6px 18px; position: relative; color: var(--text); }
+  .views li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
+  .board-txt { color: var(--text2); font-size: 14px; line-height: 1.8; }
+
+  /* 板块条形图 */
+  .sector-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; }
+  .sector-row .sname { width: 110px; flex-shrink: 0; text-align: right; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sector-row .bar { flex: 1; height: 16px; background: var(--card2); border-radius: 3px; overflow: hidden; }
+  .sector-row .bar i { display: block; height: 100%; background: linear-gradient(90deg, #f0883e, #f6c453); }
+  .sector-row .spct { width: 64px; flex-shrink: 0; font-weight: 600; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--text2); font-weight: 500; font-size: 12px; white-space: nowrap; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .scroll { overflow-x: auto; }
+  .lianban-badge {
+    display: inline-block; background: rgba(240,136,62,.15); color: #f6a04a;
+    padding: 1px 8px; border-radius: 4px; font-weight: 700; font-size: 12px;
+  }
+
+  /* 策略 */
+  .strategy { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .strat-item { background: var(--card2); border-radius: 10px; padding: 12px; border-left: 3px solid var(--accent); }
+  .strat-item.risk { border-left-color: var(--up); }
+  .strat-item.advice { border-left-color: var(--accent2); }
+  .strat-item .t { font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+  .strat-item .c { font-size: 14px; line-height: 1.7; }
+
+  /* 选股策略 */
+  .sel-mainline {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: linear-gradient(135deg, rgba(240,136,62,.14), rgba(246,196,83,.08));
+    border: 1px solid rgba(240,136,62,.35); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;
+  }
+  .sel-badge {
+    background: linear-gradient(135deg, #f0883e, #f6c453); color: #1a1206;
+    padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 14px; white-space: nowrap;
+  }
+  .sel-meta { font-size: 13px; line-height: 1.7; color: var(--text2); }
+  .sel-meta b { color: var(--accent); }
+  .sel-rules { font-size: 12px; color: var(--text2); margin: 6px 0 10px; }
+  .sel-sub {
+    font-size: 13px; color: var(--accent2); font-weight: 600;
+    margin: 14px 0 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .sel-sub::before { content: ""; width: 3px; height: 12px; background: var(--accent2); border-radius: 2px; }
+  .reason-txt { color: var(--text2); font-size: 12px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 每日荐股（技能） */
+  .skill-head {
+    background: linear-gradient(135deg, rgba(88,166,255,.14), rgba(240,136,62,.08));
+    border: 1px solid rgba(88,166,255,.3); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+  }
+  .skill-head .t { font-size: 14px; font-weight: 700; color: var(--accent2); }
+  .skill-head .meta { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.7; }
+  .skill-head .meta a { color: var(--accent2); }
+  .skill-count { font-size: 12px; color: var(--text2); margin: 6px 0 8px; }
+  .skill-count b { color: var(--accent); }
+  .check-badge {
+    display: inline-block; font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-right: 3px;
+  }
+  .check-ok { background: rgba(63,185,80,.15); color: #3fb950; }
+  .check-no { background: rgba(248,81,73,.15); color: #f85149; }
+  .skill-note { font-size: 12px; color: var(--text2); line-height: 1.7; margin-top: 10px; }
+  .skill-note b { color: var(--accent2); }
+  .sc-hi { background: rgba(63,185,80,.15); color: #3fb950; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+  .sc-mid { background: rgba(88,166,255,.15); color: #58a6ff; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+  .sc-low { background: rgba(240,136,62,.15); color: #f0883e; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+  .sc-bad { background: rgba(248,81,73,.15); color: #f85149; padding: 2px 8px; border-radius: 10px; font-weight: 700; }
+
+  /* 报告列表 */
+  .report-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    background: var(--card2); border-radius: 8px; margin: 8px 0; cursor: pointer;
+  }
+  .report-item:hover { border: 1px solid var(--accent); }
+  .report-item .d { font-weight: 600; font-size: 14px; }
+  .report-item .meta { color: var(--text2); font-size: 12px; flex: 1; }
+  .score-badge {
+    background: linear-gradient(135deg, #f0883e, #f6c453); color: #1a1206;
+    padding: 3px 10px; border-radius: 20px; font-weight: 700; font-size: 13px;
+  }
+
+  .footer { text-align: center; color: var(--text2); font-size: 11px; margin-top: 28px; line-height: 1.8; }
+  .loading { text-align: center; color: var(--text2); padding: 40px 0; font-size: 14px; }
+  @media (max-width: 600px) {
+    .header h1 { font-size: 22px; }
+    .sector-row .sname { width: 80px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <h1>A股智能复盘</h1>
+    <div class="sub"><span>东方财富实时数据</span> · AI 驱动分析</div>
+  </div>
+
+  <div class="gen-box">
+    <span class="date-label">复盘日期</span>
+    <input type="date" id="dateInput">
+    <button class="btn" id="genBtn">生成复盘报告</button>
+    <button class="btn secondary" id="refreshBtn">刷新数据</button>
+  </div>
+
+  <div class="progress-bar" id="progressBar">
+    <div class="pbar-track"><div class="pbar-fill" id="pbarFill"></div></div>
+    <div class="pbar-msg" id="pbarMsg">准备中...</div>
+  </div>
+  <div class="notice" id="notice"></div>
+
+  <div class="share-box" id="shareBox">
+    <button class="btn" id="shareImgBtn">生成分享海报</button>
+    <button class="btn secondary" id="shareLongBtn">生成长截图</button>
+    <button class="btn secondary" id="shareTxtBtn">复制分享文本</button>
+    <div class="share-tip">生成海报后保存图片，即可直接发送给微信好友</div>
+  </div>
+
+  <div class="card" id="idxCard">
+    <h2>大盘指数</h2>
+    <div class="idx-grid" id="idxGrid"><div class="loading">加载中...</div></div>
+  </div>
+
+  <div class="card" id="overviewCard" style="display:none">
+    <h2>市场概况</h2>
+    <div class="metric-grid" id="metricGrid"></div>
+  </div>
+
+  <div class="card" id="emotionCard" style="display:none">
+    <h2>情绪周期判断</h2>
+    <div class="emotion" id="emotionBox"></div>
+  </div>
+
+  <div class="card" id="viewsCard" style="display:none">
+    <h2>核心观点</h2>
+    <ul class="views" id="viewsList"></ul>
+  </div>
+
+  <div class="card" id="sectorCard" style="display:none">
+    <h2>板块分析</h2>
+    <div class="board-txt" id="boardTxt"></div>
+    <div style="margin-top:10px" id="sectorBars"></div>
+  </div>
+
+  <div class="card" id="tierCard" style="display:none">
+    <h2>涨停梯队</h2>
+    <div class="scroll" id="tierTable"></div>
+  </div>
+
+  <div class="card" id="strategyCard" style="display:none">
+    <h2>明日策略</h2>
+    <div class="strategy" id="strategyBox"></div>
+  </div>
+
+  <div class="card" id="selCard" style="display:none">
+    <h2>明日选股策略</h2>
+    <div id="selBox"></div>
+  </div>
+
+  <div class="card" id="skillCard" style="display:none">
+    <h2>每日荐股 · 一进二打板战法</h2>
+    <div id="skillBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>最新报告</h2>
+    <div id="reportList"><div class="loading">暂无报告</div></div>
+  </div>
+
+  <div class="footer">
+    Powered by 东方财富数据 · 火山方舟 AI 自动生成<br>
+    本报告仅供参考，不构成投资建议，股市有风险，入市需谨慎。
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const today = new Date();
+$("#dateInput").value = today.toISOString().slice(0, 10);
+let lastReport = null;
+
+function cls(pct) { return pct > 0 ? "up" : (pct < 0 ? "down" : "flat"); }
+function signed(v, n = 2) { return (v > 0 ? "+" : "") + Number(v).toFixed(n) + "%"; }
+function fmtAmount(v) {
+  v = Number(v) || 0;
+  if (v >= 1e8) return (v / 1e8).toFixed(1) + " 亿";
+  if (v >= 1e4) return (v / 1e4).toFixed(0) + " 万";
+  return String(v);
+}
+function showNotice(msg, type) {
+  const n = $("#notice");
+  n.textContent = msg;
+  n.className = "notice show " + (type || "ok");
+  setTimeout(() => n.classList.remove("show"), 6000);
+}
+function setProgress(pct, msg) {
+  $("#progressBar").classList.add("show");
+  $("#pbarFill").style.width = pct + "%";
+  $("#pbarMsg").textContent = msg || "";
+}
+
+function renderIndexes(indexes) {
+  $("#idxGrid").innerHTML = indexes.map(x => `
+    <div class="idx-card">
+      <div class="name">${x.name}</div>
+      <div class="price ${cls(x.change_pct)}">${Number(x.price).toFixed(2)}</div>
+      <div class="pct ${cls(x.change_pct)}">${signed(x.change_pct)}</div>
+    </div>`).join("");
+  $("#idxCard").style.display = "";
+}
+
+function renderMarket(md) {
+  $("#overviewCard").style.display = "";
+  const ud = md.updown || {};
+  const up = ud.up, down = ud.down;
+  const metrics = [
+    { k: "上涨家数", v: up !== null && up !== undefined ? up : "--", c: "up" },
+    { k: "下跌家数", v: down !== null && down !== undefined ? down : "--", c: "down" },
+    { k: "涨停家数", v: md.zt_count, c: "up" },
+    { k: "跌停家数", v: md.dt_count, c: "down" },
+    { k: "最高连板", v: md.max_lianban ? md.max_lianban + " 板" : "--", c: "" },
+    { k: "炸板率", v: md.broken_rate + "%", c: "" },
+    { k: "成交额", v: fmtAmount(md.total_amount), c: "" },
+  ];
+  $("#metricGrid").innerHTML = metrics.map(m =>
+    `<div class="metric"><div class="v ${m.c}">${m.v}</div><div class="k">${m.k}</div></div>`).join("");
+}
+
+function renderEmotion(ai) {
+  $("#emotionCard").style.display = "";
+  const score = Math.max(0, Math.min(10, Number(ai.score) || 0));
+  const R = 52, C = 2 * Math.PI * R;
+  const off = C * (1 - score / 10);
+  $("#emotionBox").innerHTML = `
+    <div class="ring">
+      <svg width="120" height="120">
+        <circle cx="60" cy="60" r="${R}" stroke="#2d333b" stroke-width="10" fill="none"/>
+        <circle cx="60" cy="60" r="${R}" stroke="#f0883e" stroke-width="10" fill="none"
+          stroke-dasharray="${C}" stroke-dashoffset="${off}" stroke-linecap="round"/>
+      </svg>
+      <div class="num">${score}<small>/10分</small></div>
+    </div>
+    <div class="txt">
+      <div class="cycle">情绪周期：${ai.cycle || "--"}</div>
+      <div class="reason">${ai.cycle_reason || ""}</div>
+    </div>`;
+}
+
+function renderViews(ai) {
+  $("#viewsCard").style.display = "";
+  const views = Array.isArray(ai.views) && ai.views.length ? ai.views : ["暂无观点"];
+  $("#viewsList").innerHTML = views.map(v => `<li>${v}</li>`).join("");
+  $("#boardTxt").textContent = ai.board || "";
+}
+
+function renderSectors(md) {
+  $("#sectorCard").style.display = "";
+  const ind = (md.sectors && md.sectors.industry) || [];
+  const max = Math.max(...ind.map(x => Math.abs(x.change_pct)), 1);
+  $("#sectorBars").innerHTML = ind.slice(0, 8).map(x => {
+    const w = Math.max(4, Math.abs(x.change_pct) / max * 100);
+    return `<div class="sector-row">
+      <div class="sname">${x.name}</div>
+      <div class="bar"><i style="width:${w}%"></i></div>
+      <div class="spct ${cls(x.change_pct)}">${signed(x.change_pct)}</div>
+    </div>`;
+  }).join("") || '<div class="board-txt">暂无板块数据</div>';
+}
+
+function renderTiers(md) {
+  $("#tierCard").style.display = "";
+  const tiers = md.lianban_tiers || [];
+  if (!tiers.length) {
+    $("#tierTable").innerHTML = '<div class="board-txt">今日无涨停梯队</div>';
+    return;
+  }
+  const rows = [];
+  tiers.forEach(t => {
+    rows.push(`<tr><td colspan="5" style="color:var(--accent2);font-weight:600">${t.lianban} 连板（${t.count} 只）</td></tr>`);
+    (t.stocks || []).slice(0, 10).forEach(s => rows.push(`<tr>
+      <td>${s.name}<br><span style="color:var(--text2);font-size:11px">${s.code}</span></td>
+      <td class="num up">${s.change_pct}%</td>
+      <td class="num">${s.first_limit_time}</td>
+      <td class="num">${s.seal_amount_fmt}</td>
+      <td>${s.industry || "--"}</td>
+    </tr>`));
+  });
+  $("#tierTable").innerHTML = `<table>
+    <tr><th>名称/代码</th><th>涨幅</th><th>首封时间</th><th>封单</th><th>行业</th></tr>
+    ${rows.join("")}</table>`;
+}
+
+function renderStrategy(ai) {
+  $("#strategyCard").style.display = "";
+  const s = ai.strategy || {};
+  $("#strategyBox").innerHTML = `
+    <div class="strat-item"><div class="t">机会方向</div><div class="c">${s.opportunity || "--"}</div></div>
+    <div class="strat-item risk"><div class="t">风险警示</div><div class="c">${s.risk || "--"}</div></div>
+    <div class="strat-item advice"><div class="t">核心建议</div><div class="c">${s.advice || "--"}</div></div>`;
+}
+
+function renderSkill(skill, sig) {
+  if (!skill || !skill.ok) { $("#skillCard").style.display = "none"; return; }
+  $("#skillCard").style.display = "";
+  const sk = skill.skill || {};
+  const cand = (skill.candidates || []).slice(0, 10);
+  const watch = (skill.watchlist || []).slice(0, 10);
+  const badge = c => c.ok ? '<span class="check-badge check-ok">通过</span>' : '<span class="check-badge check-no">未过</span>';
+  const scCls = s => s >= 80 ? "sc-hi" : (s >= 70 ? "sc-mid" : (s >= 60 ? "sc-low" : "sc-bad"));
+  const candRow = c => `<tr>
+    <td>${c.name}<br><span style="color:var(--text2);font-size:11px">${c.code}</span></td>
+    <td class="num">${c.first_limit_time || "--"}</td>
+    <td class="num">${c.seal_amount_fmt || "--"}</td>
+    <td class="num">${c.turnover_rate != null ? c.turnover_rate + "%" : "--"}</td>
+    <td class="num">${c.mkt_cap ? c.mkt_cap + "亿" : "--"}</td>
+    <td class="num">${c.pct_60 != null ? c.pct_60 + "%" : "--"}</td>
+    <td class="num"><span class="${scCls(c.score)}">${c.score ?? "--"}</span></td>
+    <td>
+      ${badge(c.checks["S1封板质量"])}${badge(c.checks["S2题材强度"])}${badge(c.checks["S3股价位置"])}${badge(c.checks["S4市值流动性"])}
+    </td>
+    <td class="reason-txt" title="${(c.reason || "").replace(/"/g, "&quot;")}">${c.reason || "--"}</td>
+  </tr>`;
+  const table = (rows, emptyTxt) => rows.length
+    ? `<div class="scroll"><table><tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>市值</th><th>60日</th><th>评分</th><th>四步筛选</th><th>题材</th></tr>${rows.map(candRow).join("")}</table></div>`
+    : `<div class="board-txt">${emptyTxt}</div>`;
+  $("#skillBox").innerHTML = `
+    <div class="skill-head">
+      <div class="t">${sk.name || "一进二打板战法"}（v${sk.version || "1.0"}")
+        <a href="${sk.source || "#"}" target="_blank" style="font-size:11px">来源</a></div>
+      <div class="meta">${sk.summary || ""}<br>${sk.target || ""}</div>
+    </div>
+    <div class="skill-count">共 <b>${skill.total_first ?? 0}</b> 只首板 → 精选候选 <b>${cand.length}</b> 只 · 关注池 <b>${skill.watchlist_count ?? 0}</b> 只 · 未通过 <b>${skill.filtered_count ?? 0}</b> 只</div>
+    <div class="sel-sub">① 精选候选（4 步筛选全过）</div>
+    ${table(cand, "今日无 4 步全过的首板股")}
+    <div class="sel-sub">② 关注池（3 步通过，需次日盘中信号确认）</div>
+    ${table(watch, "今日无 3 步通过的关注股")}
+    <div class="skill-note"><b>盘中 3 大信号：</b>${skill.signals || ""}</div>
+    <div class="skill-note"><b>风控纪律：</b>${skill.risk || ""}</div>
+    <div class="skill-note"><b>避坑：</b>${skill.pitfalls || ""}</div>
+    <div class="skill-note" style="margin-top:4px">${skill.disclaimer || ""}</div>`;
+  renderSignal(sig);
+}
+
+function renderSignal(sig) {
+  if (!sig || !sig.ok) return;
+  let html = `<div class="skill-note"><b>次日竞价入手提示（09:25-09:31 自动刷新）：</b><br>${(sig.conditions || "").split("；").join("<br>")}</div>`;
+  if (sig.mode === "live" && sig.items && sig.items.length) {
+    const lv = s => s === "可入手" ? "sc-hi" : (s === "观察" ? "sc-mid" : (s === "放弃" ? "sc-bad" : "sc-low"));
+    html = `<div class="skill-note" style="border:1px solid rgba(88,166,255,.3);border-radius:8px;padding:8px 10px;background:rgba(88,166,255,.06)">
+      <b>竞价快照（${sig.now}）</b>：<br>${sig.items.map(x => `<span class="${lv(x.level)}">${x.level}</span> <b>${x.name}</b>(${x.code}) 高开${x.open_pct ?? "--"}% 竞价额${x.auction_amount_fmt ?? "--"} —— ${x.reason}`).join("<br>")}</div>`;
+  } else if (sig.mode === "wait") {
+    html += `<div class="skill-note" style="color:var(--text2)">${sig.hint || ""}</div>`;
+  }
+  const box = document.createElement("div");
+  box.innerHTML = html;
+  document.getElementById("skillBox").appendChild(box);
+}
+
+function renderSelection(sel) {
+  if (!sel || !sel.ok) { $("#selCard").style.display = "none"; return; }
+  $("#selCard").style.display = "";
+  const ml = sel.mainline || {};
+  const scoreCls = s => s >= 80 ? "sc-hi" : (s >= 70 ? "sc-mid" : (s >= 60 ? "sc-low" : "sc-bad"));
+  const candRow = c => `
+    <tr>
+      <td>${c.name}<br><span style="color:var(--text2);font-size:11px">${c.code}</span></td>
+      <td class="num">${c.first_limit_time || "--"}</td>
+      <td class="num">${c.seal_amount_fmt || "--"}</td>
+      <td class="num">${c.turnover_rate != null ? c.turnover_rate + "%" : "--"}</td>
+      <td class="reason-txt" title="${(c.reason || "").replace(/"/g, "&quot;")}">${c.reason || "--"}</td>
+      <td class="num"><span class="${scoreCls(c.score)}">${c.score ?? "--"}</span></td>
+    </tr>`;
+  const t1 = (sel.candidates_1b || []).length
+    ? `<table><tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>题材</th><th>评分</th></tr>${(sel.candidates_1b || []).map(candRow).join("")}</table>`
+    : '<div class="board-txt">今日 1 连板中无属于最强主线的个股</div>';
+  const t2 = (sel.candidates_2b || []).length
+    ? `<table><tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>题材</th><th>评分</th></tr>${(sel.candidates_2b || []).map(candRow).join("")}</table>`
+    : '<div class="board-txt">今日 2 连板中无属于最强主线的个股</div>';
+  $("#selBox").innerHTML = `
+    <div class="sel-mainline">
+      <div class="sel-badge">最强主线：${ml.name || "--"}</div>
+      <div class="sel-meta">
+        覆盖涨停 <b>${ml.zt_count ?? 0}</b> 家 / 共 ${ml.all_zt_count ?? 0} 家涨停 · 最高 <b>${ml.lb_max ?? 0}</b> 板<br>
+        代表个股：${ml.reps || "--"}
+      </div>
+    </div>
+    <div class="sel-rules">选股规则：${sel.rules || ""}</div>
+    <div class="sel-sub">① 当日 1 连板 ∩ 最强主线（${(sel.candidates_1b || []).length} 只）</div>
+    <div class="scroll">${t1}</div>
+    <div class="sel-sub">② 当日 2 连板 ∩ 最强主线（${(sel.candidates_2b || []).length} 只）</div>
+    <div class="scroll">${t2}</div>
+    <div class="sel-rules" style="margin-top:8px">${sel.note || ""}</div>`;
+}
+
+function renderReport(rep) {
+  const md = rep.market;
+  renderIndexes(md.indexes);
+  renderMarket(md);
+  renderEmotion(rep.ai);
+  renderViews(rep.ai);
+  renderSectors(md);
+  renderTiers(md);
+  renderStrategy(rep.ai);
+  renderSelection(rep.selection);
+  renderSkill(rep.skill_recommend, rep.signal);
+  lastReport = rep;
+  $("#shareBox").classList.add("show");
+}
+
+/* ============ 微信分享：海报长图 + 分享文本 ============ */
+const P = { bg: "#0d1117", card: "#161b22", card2: "#1c2333", border: "#2d333b",
+            text: "#e6edf3", text2: "#8b949e", up: "#f85149", down: "#3fb950",
+            accent: "#f0883e", accent2: "#58a6ff", gold: "#f6c453" };
+
+function wrapText(ctx, text, maxW) {
+  const lines = [];
+  let cur = "";
+  for (const ch of String(text == null ? "" : text)) {
+    if (ctx.measureText(cur + ch).width > maxW && cur) { lines.push(cur); cur = ch; }
+    else cur += ch;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
+}
+function fmtD(d) { return String(d).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"); }
+function clipLines(lines, n) { return lines.slice(0, n); }
+
+function buildPoster(rep) {
+  const md = rep.market || {}, ai = rep.ai || {}, sel = rep.selection || {};
+  const W = 750, PAD = 34, gap = 10;
+  const inds = md.indexes || [];
+  const views = Array.isArray(ai.views) ? ai.views : [];
+  const ml = sel.mainline || {};
+  const c1 = (sel.candidates_1b || []).slice(0, 5);
+  const c2 = (sel.candidates_2b || []).slice(0, 5);
+  const strat = ai.strategy || {};
+
+  // 预测量：先建临时 ctx
+  const c0 = document.createElement("canvas").getContext("2d");
+  c0.font = "500 13px 'PingFang SC','Microsoft YaHei',sans-serif";
+
+  const blocks = [];
+  // 1. 头部
+  blocks.push({ h: 148, draw: ctx => {
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, P.accent); g.addColorStop(1, P.gold);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, 4);
+  }});
+  // 2. 指数
+  blocks.push({ h: 96, draw: ctx => {
+    const n = inds.length, cw = (W - PAD * 2) / Math.max(n, 1);
+    inds.slice(0, 4).forEach((x, i) => {
+      const cx = PAD + i * cw;
+      ctx.fillStyle = P.text2; ctx.font = "500 13px sans-serif";
+      ctx.fillText(x.name || "", cx, 30);
+      ctx.fillStyle = P.text; ctx.font = "700 20px sans-serif";
+      ctx.fillText(Number(x.price || 0).toFixed(2), cx, 56);
+      const pct = Number(x.change_pct || 0);
+      ctx.fillStyle = pct > 0 ? P.up : (pct < 0 ? P.down : P.text2);
+      ctx.font = "600 14px sans-serif";
+      ctx.fillText((pct > 0 ? "+" : "") + pct.toFixed(2) + "%", cx, 78);
+    });
+  }});
+  // 3. 市场概况
+  const ud = md.updown || {};
+  blocks.push({ h: 66, draw: ctx => {
+    ctx.fillStyle = P.text2; ctx.font = "500 13px sans-serif";
+    const upT = ud.up != null ? ud.up : "--", dnT = ud.down != null ? ud.down : "--";
+    const parts = [
+      ["涨停", md.zt_count, P.up], ["跌停", md.dt_count, P.down],
+      ["最高板", (md.max_lianban || 0) + "板", P.accent],
+      ["炸板率", md.broken_rate + "%", P.text],
+      ["涨/跌", upT + "/" + dnT, P.text],
+    ];
+    const cw = (W - PAD * 2) / parts.length;
+    parts.forEach((p, i) => {
+      const cx = PAD + i * cw;
+      ctx.fillStyle = P.text2; ctx.font = "500 12px sans-serif"; ctx.fillText(p[0], cx, 20);
+      ctx.fillStyle = p[2]; ctx.font = "700 16px sans-serif"; ctx.fillText(String(p[1]), cx, 44);
+    });
+  }});
+  // 4. 情绪评分
+  const score = Math.max(0, Math.min(10, Number(ai.score) || 0));
+  const reasonLines = clipLines(wrapText(c0, ai.cycle_reason || "", W - PAD * 2 - 140), 3);
+  blocks.push({ h: 150, draw: ctx => {
+    const R = 44, cx = PAD + 56, cy = 82;
+    ctx.lineWidth = 9; ctx.strokeStyle = P.border;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = P.accent; ctx.lineCap = "round";
+    const C = 2 * Math.PI * R;
+    ctx.beginPath(); ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + (score / 10) * Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = P.text; ctx.font = "700 26px sans-serif";
+    ctx.fillText(String(score), cx - 20, cy + 2);
+    ctx.fillStyle = P.text2; ctx.font = "400 11px sans-serif";
+    ctx.fillText("/10分", cx + 8, cy + 4);
+    ctx.fillStyle = P.accent; ctx.font = "700 17px sans-serif";
+    ctx.fillText("情绪周期：" + (ai.cycle || "--"), PAD + 124, 44);
+    ctx.fillStyle = P.text2; ctx.font = "400 13px sans-serif";
+    let yy = 70;
+    reasonLines.forEach(l => { ctx.fillText(l, PAD + 124, yy); yy += 20; });
+  }});
+  // 5. 核心观点
+  const viewBlocks = views.slice(0, 3).map(v => clipLines(wrapText(c0, v, W - PAD * 2 - 30), 3));
+  blocks.push({ h: 36 + viewBlocks.reduce((s, l) => s + l.length * 21, 0), draw: ctx => {
+    ctx.fillStyle = P.accent; ctx.font = "700 16px sans-serif";
+    ctx.fillText("核心观点", PAD, 24);
+    let yy = 52;
+    viewBlocks.forEach(lines => {
+      lines.forEach(l => { ctx.fillStyle = P.text; ctx.font = "400 13px sans-serif"; ctx.fillText(l, PAD, yy); yy += 21; });
+      yy += 8;
+    });
+  }});
+  // 6. 最强主线
+  const mlLines = clipLines(wrapText(c0, "代表个股：" + (ml.reps || "--"), W - PAD * 2 - 30), 2);
+  blocks.push({ h: 104, draw: ctx => {
+    ctx.fillStyle = P.card; ctx.fillRect(PAD - 10, 8, W - (PAD - 10) * 2, 88);
+    ctx.fillStyle = P.accent; ctx.font = "500 12px sans-serif";
+    ctx.fillText("当日最强主线", PAD, 30);
+    ctx.fillStyle = "#1a1206"; ctx.font = "700 20px sans-serif";
+    ctx.fillText(ml.name || "--", PAD + 130, 32);
+    ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+    ctx.fillText("覆盖涨停 " + (ml.zt_count ?? 0) + " 家 · 最高 " + (ml.lb_max ?? 0) + " 板", PAD, 56);
+    ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+    let yy = 78;
+    mlLines.forEach(l => { ctx.fillText(l, PAD, yy); yy += 18; });
+  }});
+  // 6.5 每日荐股精选（一进二打板）
+  const skill = rep.skill_recommend || {};
+  const skCand = (skill.candidates || []).slice(0, 5);
+  const skWatch = (skill.watchlist || []).slice(0, 3);
+  if (skill && skill.ok) {
+    blocks.push({ h: 46 + Math.max(skCand.length, 1) * 22, draw: ctx => {
+      ctx.fillStyle = P.accent2; ctx.font = "700 15px sans-serif";
+      ctx.fillText("每日荐股 · 一进二打板战法", PAD, 24);
+      ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+      ctx.fillText((skill.total_first ?? 0) + "只首板 → 精选候选" + skCand.length + "只 · 关注池" + (skill.watchlist_count ?? 0) + "只", PAD, 46);
+      let yy = 70;
+      skCand.forEach(x => {
+        ctx.fillStyle = P.text; ctx.font = "600 13px sans-serif";
+        ctx.fillText(x.name + " " + x.code, PAD, yy);
+        ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+        ctx.fillText("封单" + (x.seal_amount_fmt || "--") + "  市值" + (x.mkt_cap ? x.mkt_cap + "亿" : "--"), PAD + 170, yy);
+        yy += 22;
+      });
+      if (!skCand.length) {
+        ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+        ctx.fillText("今日无 4 步全过候选（关注池：" + (skWatch.map(w => w.name).join("、") || "无") + "）", PAD, 70);
+      }
+    }});
+  }
+  // 候选行
+  const candRowH = 30;
+  const candBlocks = [];
+  [["① 1连板候选", c1], ["② 2连板候选", c2]].forEach(([t, list]) => {
+    candBlocks.push({ t, list, h: 36 + list.length * candRowH });
+  });
+  candBlocks.forEach(b => blocks.push({ h: b.h, draw: ctx => {
+    ctx.fillStyle = P.accent2; ctx.font = "700 14px sans-serif";
+    ctx.fillText(b.t, PAD, 24);
+    let yy = 52;
+    b.list.forEach(x => {
+      ctx.fillStyle = P.text; ctx.font = "600 13px sans-serif";
+      ctx.fillText(x.name + "  " + x.code, PAD, yy);
+      ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+      ctx.fillText("封单" + (x.seal_amount_fmt || "--") + "  首封" + (x.first_limit_time || "--"), PAD + 210, yy);
+      const rl = clipLines(wrapText(c0, x.reason || "", W - PAD * 2 - 210 - 260), 1);
+      if (rl.length) { ctx.fillStyle = P.gold; ctx.font = "400 12px sans-serif"; ctx.fillText(rl[0], PAD + 430, yy); }
+      yy += candRowH;
+    });
+    if (!b.list.length) {
+      ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+      ctx.fillText("今日无符合该规则的个股", PAD, 52);
+    }
+  }}));
+  // 7. 明日策略
+  const sParts = [["机会方向", strat.opportunity], ["风险警示", strat.risk], ["核心建议", strat.advice]]
+    .map(([t, v]) => ({ t, lines: clipLines(wrapText(c0, v || "--", W - PAD * 2 - 24), 3) }));
+  blocks.push({ h: 34 + sParts.reduce((s, p) => s + p.lines.length * 21 + 24, 0), draw: ctx => {
+    ctx.fillStyle = P.accent; ctx.font = "700 16px sans-serif";
+    ctx.fillText("明日策略", PAD, 24);
+    let yy = 50;
+    sParts.forEach(p => {
+      ctx.fillStyle = P.text2; ctx.font = "600 12px sans-serif";
+      ctx.fillText(p.t, PAD, yy); yy += 18;
+      p.lines.forEach(l => { ctx.fillStyle = P.text; ctx.font = "400 13px sans-serif"; ctx.fillText(l, PAD, yy); yy += 21; });
+      yy += 10;
+    });
+  }});
+  // 8. 免责
+  blocks.push({ h: 72, draw: ctx => {
+    ctx.fillStyle = P.text2; ctx.font = "400 11px sans-serif";
+    ctx.fillText("由 A股智能复盘系统 生成 · 数据来源：东方财富/腾讯/问财", PAD, 20);
+    ctx.fillText("本海报仅供参考，不构成投资建议。股市有风险，入市需谨慎。", PAD, 40);
+    ctx.fillStyle = P.accent; ctx.font = "600 13px sans-serif";
+    ctx.fillText("A股智能复盘  " + fmtD(rep.date || ""), PAD, 62);
+  }});
+
+  // 计算总高度
+  let H = PAD;
+  blocks.forEach(b => { H += b.h + gap; });
+  H += PAD;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+  let y = 0;
+  // 头部标题
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, P.accent); g.addColorStop(1, P.gold);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 5);
+  ctx.fillStyle = P.text; ctx.font = "700 34px sans-serif";
+  ctx.fillText("A股智能复盘", PAD, 70);
+  ctx.fillStyle = P.gold; ctx.font = "700 22px sans-serif";
+  ctx.fillText(fmtD(rep.date || ""), PAD + 240, 70);
+  ctx.fillStyle = P.text2; ctx.font = "400 13px sans-serif";
+  ctx.fillText("情绪周期：" + (ai.cycle || "--") + " · 评分 " + (ai.score ?? "--") + "/10", PAD, 100);
+  y = 148;
+
+  blocks.forEach(b => {
+    y += gap;
+    ctx.save();
+    ctx.translate(0, y);
+    b.draw(ctx);
+    ctx.restore();
+    y += b.h;
+  });
+
+  canvas.toBlob(blob => {
+    if (!blob) { showNotice("海报生成失败", "error"); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "A股智能复盘_" + (rep.date || "") + ".png";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    showNotice("海报已生成，长按/右键保存后发送给微信好友", "ok");
+  }, "image/png");
+}
+
+/* ============ 完整长截图（完整报告，发 QQ/微信） ============ */
+function buildFullPoster(rep) {
+  const md = rep.market || {}, ai = rep.ai || {}, sel = rep.selection || {},
+        sk = rep.skill_recommend || {}, sig = rep.signal || {};
+  const W = 750, PAD = 34, gap = 12;
+  const inds = md.indexes || [];
+  const c1 = (sel.candidates_1b || []).slice(0, 8);
+  const c2 = (sel.candidates_2b || []).slice(0, 8);
+  const skCand = (sk.candidates || []).slice(0, 6);
+  const skWatch = (sk.watchlist || []).slice(0, 8);
+  const views = Array.isArray(ai.views) ? ai.views : [];
+  const strat = ai.strategy || {};
+  const ml = sel.mainline || {};
+  const ud = md.updown || {};
+  const c0 = document.createElement("canvas").getContext("2d");
+  c0.font = "500 12px 'PingFang SC','Microsoft YaHei',sans-serif";
+  const ROWH = 24, HDRH = 30, colW = W - PAD * 2;
+
+  function drawTable(ctx, x, y, headers, rows, widths, opts) {
+    opts = opts || {};
+    let total = widths.reduce((s, v) => s + v, 0);
+    widths = widths.slice();
+    widths[widths.length - 1] = colW - total + widths[widths.length - 1];
+    ctx.fillStyle = P.card2;
+    ctx.fillRect(x, y, colW, HDRH);
+    ctx.font = "600 12px sans-serif"; ctx.fillStyle = P.text2;
+    let cx = x;
+    headers.forEach((h, i) => {
+      ctx.fillText(h, cx + 8, y + 20);
+      cx += widths[i];
+    });
+    y += HDRH;
+    rows.forEach((r, i) => {
+      if (i % 2 === 1) { ctx.fillStyle = "rgba(255,255,255,.025)"; ctx.fillRect(x, y, colW, ROWH); }
+      ctx.fillStyle = P.border; ctx.fillRect(x, y + ROWH - 1, colW, 1);
+      let cxx = x;
+      ctx.font = "400 12px sans-serif";
+      r.forEach((cell, j) => {
+        const raw = cell == null ? "--" : String(cell);
+        const isScore = opts.scoreCol === j;
+        ctx.fillStyle = j === 0 ? P.text : P.text2;
+        let txt = raw;
+        if (isScore) {
+          const s = Number(cell);
+          const sc = s >= 80 ? "#3fb950" : (s >= 70 ? "#58a6ff" : (s >= 60 ? "#f0883e" : "#f85149"));
+          const tw = ctx.measureText(raw).width + 14;
+          ctx.fillStyle = sc; ctx.globalAlpha = .16;
+          ctx.beginPath(); ctx.roundRect(cxx + 4, y + 4, tw, ROWH - 8, 9); ctx.fill();
+          ctx.globalAlpha = 1; ctx.fillStyle = sc; ctx.font = "700 12px sans-serif";
+          ctx.fillText(raw, cxx + 11, y + 17);
+          ctx.font = "400 12px sans-serif";
+          cxx += widths[j];
+          return;
+        }
+        if (raw.length > 10) txt = raw.slice(0, 10) + "…";
+        ctx.fillText(txt, cxx + 8, y + 17);
+        cxx += widths[j];
+      });
+      y += ROWH;
+    });
+    return y + 4;
+  }
+
+  const blocks = [];
+  // 1. 头部
+  blocks.push({ h: 102, draw: ctx => {
+    const g = ctx.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, P.accent); g.addColorStop(1, P.gold);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, 4);
+    ctx.fillStyle = P.text; ctx.font = "700 25px sans-serif";
+    ctx.fillText("A股智能复盘", PAD, 48);
+    ctx.fillStyle = P.text2; ctx.font = "400 13px sans-serif";
+    ctx.fillText(fmtD(rep.date || "") + " · 东方财富/腾讯/问财数据", PAD, 72);
+    ctx.fillStyle = P.accent2; ctx.font = "600 13px sans-serif";
+    ctx.fillText("情绪评分 " + (ai.score ?? "--") + "/10 · 周期：" + (ai.cycle || "--"), PAD, 94);
+  }});
+  // 2. 指数
+  blocks.push({ h: 92, draw: ctx => {
+    const n = inds.length, cw = colW / Math.max(n, 1);
+    inds.slice(0, 4).forEach((x, i) => {
+      const cx = PAD + i * cw;
+      ctx.fillStyle = P.text2; ctx.font = "500 12px sans-serif"; ctx.fillText(x.name || "", cx, 24);
+      ctx.fillStyle = P.text; ctx.font = "700 19px sans-serif";
+      ctx.fillText(Number(x.price || 0).toFixed(2), cx, 48);
+      const pct = Number(x.change_pct || 0);
+      ctx.fillStyle = pct > 0 ? P.up : (pct < 0 ? P.down : P.text2);
+      ctx.font = "600 13px sans-serif";
+      ctx.fillText((pct > 0 ? "+" : "") + pct.toFixed(2) + "%", cx, 70);
+    });
+  }});
+  // 3. 市场概况
+  blocks.push({ h: 62, draw: ctx => {
+    const parts = [
+      ["涨停", md.zt_count, P.up], ["跌停", md.dt_count, P.down],
+      ["最高板", (md.max_lianban || 0) + "板", P.accent],
+      ["炸板率", md.broken_rate + "%", P.text],
+      ["涨/跌", (ud.up != null ? ud.up : "--") + "/" + (ud.down != null ? ud.down : "--"), P.text],
+    ];
+    const cw = colW / parts.length;
+    parts.forEach((p, i) => {
+      const cx = PAD + i * cw;
+      ctx.fillStyle = P.text2; ctx.font = "500 12px sans-serif"; ctx.fillText(p[0], cx, 18);
+      ctx.fillStyle = p[2]; ctx.font = "700 15px sans-serif"; ctx.fillText(String(p[1]), cx, 42);
+    });
+  }});
+  // 4. 最强主线
+  const mlReps = clipLines(wrapText(c0, "代表个股：" + (ml.reps || "--"), colW - 20), 2);
+  blocks.push({ h: 86, draw: ctx => {
+    ctx.fillStyle = P.card; ctx.fillRect(PAD - 10, 6, colW + 20, 72);
+    ctx.fillStyle = P.accent; ctx.font = "500 12px sans-serif"; ctx.fillText("当日最强主线", PAD, 28);
+    ctx.fillStyle = "#1a1206"; ctx.font = "700 19px sans-serif";
+    ctx.fillText(ml.name || "--", PAD + 118, 30);
+    ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+    ctx.fillText("覆盖涨停 " + (ml.zt_count ?? 0) + " 家 / 共 " + (ml.all_zt_count ?? 0) + " 家 · 最高 " + (ml.lb_max ?? 0) + " 板", PAD, 52);
+    let yy = 74;
+    mlReps.forEach(l => { ctx.fillText(l, PAD, yy); yy += 18; });
+  }});
+  // 5. 选股候选表（1板 + 2板）
+  const candHdrs = ["名称/代码", "首封", "封单", "换手", "评分", "题材"];
+  const candW = [138, 62, 96, 58, 56, 0];
+  const mkRows = xs => xs.map(x => [x.name, x.first_limit_time || "--", x.seal_amount_fmt || "--",
+        (x.turnover_rate != null ? x.turnover_rate + "%" : "--"), x.score, x.reason || "--"]);
+  const lbTitles = [
+    ["① 当日 1 连板 ∩ 最强主线（" + c1.length + " 只）", mkRows(c1)],
+    ["② 当日 2 连板 ∩ 最强主线（" + c2.length + " 只）", mkRows(c2)],
+  ];
+  lbTitles.forEach(t => {
+    blocks.push({ h: 30, draw: ctx => {
+      ctx.fillStyle = P.accent; ctx.font = "700 14px sans-serif"; ctx.fillText(t[0], PAD, 20);
+    }});
+    if (t[1].length) {
+      blocks.push({ h: HDRH + t[1].length * ROWH + 10, draw: ctx => {
+        drawTable(ctx, PAD, 0, candHdrs, t[1], candW, { scoreCol: 4 });
+      }});
+    } else {
+      blocks.push({ h: 30, draw: ctx => {
+        ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+        ctx.fillText("今日无符合个股", PAD, 20);
+      }});
+    }
+  });
+  // 6. 每日荐股
+  blocks.push({ h: 34, draw: ctx => {
+    ctx.fillStyle = P.accent2; ctx.font = "700 15px sans-serif";
+    ctx.fillText("每日荐股 · 一进二打板战法" + (sk.ok ? "（" + sk.total_first + "只首板）" : ""), PAD, 24);
+  }});
+  const skHdrs = ["名称/代码", "首封", "封单", "换手", "市值", "评分"];
+  const skW = [140, 62, 96, 58, 64, 56];
+  const mkSkRows = xs => xs.map(x => [x.name, x.first_limit_time || "--", x.seal_amount_fmt || "--",
+        (x.turnover_rate != null ? x.turnover_rate + "%" : "--"), (x.mkt_cap ? x.mkt_cap + "亿" : "--"), x.score]);
+  const skSections = [
+    ["① 精选候选（4 步全过）", skCand],
+    ["② 关注池（3 步通过，待竞价确认）", skWatch],
+  ];
+  skSections.forEach(t => {
+    blocks.push({ h: 30, draw: ctx => {
+      ctx.fillStyle = P.accent2; ctx.font = "600 13px sans-serif"; ctx.fillText(t[0], PAD, 20);
+    }});
+    if (t[1].length) {
+      blocks.push({ h: HDRH + t[1].length * ROWH + 10, draw: ctx => {
+        drawTable(ctx, PAD, 0, skHdrs, mkSkRows(t[1]), skW, { scoreCol: 5 });
+      }});
+    } else {
+      blocks.push({ h: 30, draw: ctx => {
+        ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
+        ctx.fillText("今日无", PAD, 20);
+      }});
+    }
+  });
+  // 7. 竞价提示
+  const cond = (sig.conditions || "").split("；").filter(Boolean);
+  const condLines = [];
+  cond.forEach(s => condLines.push(...clipLines(wrapText(c0, s, colW - 10), 3)));
+  blocks.push({ h: 36 + condLines.length * 20, draw: ctx => {
+    ctx.fillStyle = P.accent2; ctx.font = "700 14px sans-serif";
+    ctx.fillText("次日竞价入手提示", PAD, 24);
+    let yy = 50;
+    condLines.forEach(l => { ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif"; ctx.fillText(l, PAD, yy); yy += 20; });
+  }});
+  // 8. 核心观点 + 策略
+  const viewLines = views.slice(0, 3).map(v => clipLines(wrapText(c0, v, colW - 10), 3));
+  const stratLines = [
+    "机会：" + (strat.opportunity || "--"),
+    "风险：" + (strat.risk || "--"),
+    "建议：" + (strat.advice || "--"),
+  ];
+  const sLines = stratLines.map(s => clipLines(wrapText(c0, s, colW - 10), 2));
+  const totalV = viewLines.reduce((s, l) => s + l.length * 20 + 6, 0) + sLines.reduce((s, l) => s + l.length * 20, 0);
+  blocks.push({ h: 34 + totalV, draw: ctx => {
+    ctx.fillStyle = P.accent; ctx.font = "700 15px sans-serif"; ctx.fillText("核心观点", PAD, 24);
+    let yy = 52;
+    viewLines.forEach(lines => {
+      lines.forEach(l => { ctx.fillStyle = P.text; ctx.font = "400 12.5px sans-serif"; ctx.fillText(l, PAD, yy); yy += 20; });
+      yy += 6;
+    });
+    const colors = [P.text, "#f85149", P.text];
+    sLines.forEach((lines, i) => {
+      lines.forEach(l => { ctx.fillStyle = colors[i]; ctx.font = "400 12.5px sans-serif"; ctx.fillText(l, PAD, yy); yy += 20; });
+    });
+  }});
+  // 9. 免责
+  blocks.push({ h: 64, draw: ctx => {
+    ctx.fillStyle = P.text2; ctx.font = "400 11px sans-serif";
+    ctx.fillText("数据来源：东方财富/腾讯/问财 · 仅供参考，不构成投资建议", PAD, 26);
+    ctx.fillText("A股智能复盘系统 · " + (rep.created_at || ""), PAD, 46);
+  }});
+
+  const H = blocks.reduce((s, b) => s + b.h + gap, 0) + 20;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = P.bg; ctx.fillRect(0, 0, W, H);
+  let y = 10;
+  blocks.forEach(b => { ctx.save(); ctx.translate(0, y); b.draw(ctx); ctx.restore(); y += b.h + gap; });
+  const a = document.createElement("a");
+  a.download = "A股复盘_" + (rep.date || "") + ".png";
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+}
+
+function copyShareText(rep) {
+  const md = rep.market || {}, ai = rep.ai || {}, sel = rep.selection || {};
+  const ud = md.updown || {};
+  const ml = sel.mainline || {};
+  const sk = rep.skill_recommend || {};
+  const name = x => x.name + (x.code ? "(" + x.code + ")" : "");
+  const parts = [
+    "【A股智能复盘 " + fmtD(rep.date || "") + "】",
+    "情绪评分：" + (ai.score ?? "--") + "/10，周期：" + (ai.cycle || "--"),
+    "大盘：" + (md.indexes || []).map(x => x.name + " " + Number(x.price || 0).toFixed(2) + " (" + (x.change_pct > 0 ? "+" : "") + x.change_pct + "%)").join("  "),
+    "市场：涨停" + md.zt_count + " 跌停" + md.dt_count + " 最高" + (md.max_lianban || 0) + "板 炸板率" + md.broken_rate + "% 上涨" + (ud.up ?? "--") + "/下跌" + (ud.down ?? "--"),
+    "",
+    "当日最强主线：" + (ml.name || "--") + "（覆盖涨停 " + (ml.zt_count ?? 0) + " 家，代表：" + (ml.reps || "--") + "）",
+    "1连板候选：" + ((sel.candidates_1b || []).slice(0, 8).map(x => name(x) + (x.score != null ? "(" + x.score + "分)" : "")).join("、") || "无"),
+    "2连板候选：" + ((sel.candidates_2b || []).slice(0, 8).map(x => name(x) + (x.score != null ? "(" + x.score + "分)" : "")).join("、") || "无"),
+    "",
+    "每日荐股（一进二打板战法）：",
+  ];
+  if (sk && sk.ok) {
+    const skn = (sk.skill || {}).name || "一进二打板战法";
+    parts.push("【" + skn + "】" + sk.total_first + "只首板 → 精选候选：" +
+      ((sk.candidates || []).slice(0, 5).map(x => name(x) + (x.score != null ? "(" + x.score + "分)" : "")).join("、") || "无") +
+      "；关注池：" + ((sk.watchlist || []).slice(0, 5).map(x => name(x) + (x.score != null ? "(" + x.score + "分)" : "")).join("、") || "无"));
+    parts.push("盘中信号：" + sk.signals);
+    parts.push("风控：" + sk.risk);
+  } else {
+    parts.push("每日荐股：今日无可用数据");
+  }
+  parts.push("",
+    "核心观点：",
+  );
+  (ai.views || []).slice(0, 3).forEach((v, i) => parts.push((i + 1) + "." + v));
+  const s = ai.strategy || {};
+  parts.push("", "机会：" + (s.opportunity || "--"), "风险：" + (s.risk || "--"), "建议：" + (s.advice || "--"));
+  parts.push("", "（数据来源：东方财富/腾讯/问财，仅供参考，不构成投资建议）");
+  const text = parts.join("\n");
+  // 兼容 http 内网：优先 execCommand，clipboard API 兜底
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  ta.remove();
+  if (!ok && navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showNotice("分享文本已复制，粘贴到微信即可", "ok"))
+      .catch(() => { showNotice("复制失败，请手动长按选择复制", "error"); window.prompt("复制以下内容", text); });
+    return;
+  }
+  showNotice(ok ? "分享文本已复制，粘贴到微信即可" : "复制失败，请手动复制", ok ? "ok" : "error");
+}
+
+async function loadReports() {
+  try {
+    const r = await fetch("/api/reports");
+    const j = await r.json();
+    const list = (j.data || []).slice(0, 10);
+    $("#reportList").innerHTML = list.length ? list.map(x => `
+      <div class="report-item" onclick="openReport('${x.date}')">
+        <div class="d">${x.date.slice(0,4)}-${x.date.slice(4,6)}-${x.date.slice(6,8)}</div>
+        <div class="meta">${x.cycle || "--"} · 生成于 ${(x.created_at || "").slice(5, 16)}</div>
+        <div class="score-badge">${x.score ?? "--"}分</div>
+      </div>`).join("") : '<div class="loading">暂无报告</div>';
+  } catch (e) { $("#reportList").innerHTML = '<div class="loading">加载失败</div>'; }
+}
+
+async function openReport(d) {
+  try {
+    const r = await fetch("/api/report?date=" + d);
+    const j = await r.json();
+    if (j.ok) { renderReport(j.data); window.scrollTo({ top: 0, behavior: "smooth" }); }
+    else showNotice(j.error, "error");
+  } catch (e) { showNotice("加载报告失败", "error"); }
+}
+
+function generate() {
+  const date = $("#dateInput").value;
+  const btn = $("#genBtn");
+  btn.disabled = true;
+  setProgress(5, "正在连接...");
+
+  fetch("/api/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ date }),
+  }).then(resp => {
+    if (!resp.ok || !resp.body) throw new Error("HTTP " + resp.status);
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    function pump() {
+      return reader.read().then(({ done, value }) => {
+        if (done) { btn.disabled = false; return; }
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
+          let event = "message", data = "";
+          chunk.split("\n").forEach(line => {
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            else if (line.startsWith("data:")) data = line.slice(5).trim();
+          });
+          if (!data) continue;
+          let obj;
+          try { obj = JSON.parse(data); } catch (e) { continue; }
+          if (event === "progress") {
+            const stageMap = { connecting: 5, market: 30, market_done: 48, select: 62, skill: 72, ai: 80 };
+            setProgress(stageMap[obj.stage] || 50, obj.msg);
+          } else if (event === "done") {
+            setProgress(100, obj.msg);
+            renderReport(obj.report);
+            setTimeout(() => $("#progressBar").classList.remove("show"), 1200);
+            showNotice("复盘报告生成完成", "ok");
+            loadReports();
+          } else if (event === "error") {
+            showNotice(obj.msg || "生成失败", "error");
+            $("#progressBar").classList.remove("show");
+          }
+        }
+        return pump();
+      }).catch(err => {
+        btn.disabled = false;
+        showNotice("连接中断: " + err.message, "error");
+      });
+    }
+    return pump();
+  }).catch(err => {
+    btn.disabled = false;
+    showNotice("请求失败: " + err.message, "error");
+  });
+}
+
+$("#genBtn").addEventListener("click", generate);
+$("#refreshBtn").addEventListener("click", () => openReport($("#dateInput").value));
+$("#shareImgBtn").addEventListener("click", () => {
+  if (lastReport) buildPoster(lastReport);
+  else showNotice("请先生成复盘报告", "error");
+});
+$("#shareLongBtn").addEventListener("click", () => {
+  if (lastReport) buildFullPoster(lastReport);
+  else showNotice("请先生成复盘报告", "error");
+});
+$("#shareTxtBtn").addEventListener("click", () => {
+  if (lastReport) copyShareText(lastReport);
+  else showNotice("请先生成复盘报告", "error");
+});
+
+// 初始化：加载今日报告（若有）
+loadReports();
+const todayStr = today.toISOString().slice(0, 10).replace(/-/g, "");
+openReport(todayStr);
+</script>
+</body>
+</html>
