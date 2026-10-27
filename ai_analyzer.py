@@ -120,7 +120,7 @@ def _fallback_report(md):
 
     updown_txt = f"上涨 {up} 家 / 下跌 {down} 家" if (up is not None) else "涨跌家数（历史日期无实时口径）"
     views = [
-        f"今日涨停 {zt} 家、跌停 {dt} 家，最高 {max_lb} 连板，炸板率 {md.get('broken_rate', 0)}%，{updown_txt}。",
+        f"{md.get('date', '')} 涨停 {zt} 家、跌停 {dt} 家，最高 {max_lb} 连板，炸板率 {md.get('broken_rate', 0)}%，{updown_txt}。",
         f"领涨行业板块：{ind_names}。短线情绪评分 {score} 分，处于「{cycle}」。",
     ]
     return {

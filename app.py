@@ -7,7 +7,7 @@ import json
 import os
 import time
 import traceback
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from flask import Flask, jsonify, render_template, request, Response, stream_with_context
 
@@ -131,13 +131,22 @@ def api_get_report():
     return jsonify({"ok": False, "error": "该日期暂无报告"})
 
 
+def _next_date_str(date):
+    """报告日期次日（YYYY-MM-DD），失败返回 '次日'"""
+    try:
+        d = datetime.strptime(str(date), "%Y-%m-%d")
+        return (d + timedelta(days=1)).strftime("%Y-%m-%d")
+    except Exception:
+        return "次日"
+
+
 @app.route("/report/<date>.html")
 def report_snapshot(date):
     """每日报告快照页：单文件静态 HTML（数据内嵌，可分享到 QQ/微信直接打开）"""
     rep = _load_report(date)
     if not rep:
-        return render_template("snapshot.html", rep={"date": date, "ai": {}, "market": {}, "selection": {}, "skill_recommend": {}, "signal": {}})
-    return render_template("snapshot.html", rep=rep)
+        return render_template("snapshot.html", rep={"date": date, "ai": {}, "market": {}, "selection": {}, "skill_recommend": {}, "signal": {}}, next_date=_next_date_str(date))
+    return render_template("snapshot.html", rep=rep, next_date=_next_date_str(rep.get("date", date)))
 
 
 @app.route("/download/<date>.html")
@@ -146,7 +155,7 @@ def report_download(date):
     rep = _load_report(date)
     if not rep:
         return jsonify({"ok": False, "error": "该日期暂无报告"}), 404
-    html = render_template("snapshot.html", rep=rep)
+    html = render_template("snapshot.html", rep=rep, next_date=_next_date_str(rep.get("date", date)))
     resp = Response(html, mimetype="text/html")
     resp.headers["Content-Disposition"] = f'attachment; filename="report_{date}.html"'
     return resp

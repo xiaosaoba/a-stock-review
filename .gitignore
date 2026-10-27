@@ -7,6 +7,10 @@ reports/
 *.log
 qrcode.png
 
+# 效果图例外（README 引用）
+!screenshots/
+!screenshots/*.png
+
 # 诊断/部署临时脚本（非核心源码）
 diag_*
 test_*

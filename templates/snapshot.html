@@ -122,9 +122,9 @@
       {% endfor %}
     </table>
     {% else %}
-    <div class="line">今日无 4 步全过候选</div>
+    <div class="line">{{ rep.date }} 无 4 步全过候选</div>
     {% endif %}
-    <div class="line"><b>② 关注池（3 步通过，待次日竞价确认）</b></div>
+    <div class="line"><b>② 关注池（3 步通过，待 {{ next_date }} 竞价确认）</b></div>
     {% if sk.watchlist %}
     <table>
       <tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>市值</th><th class="num">评分</th></tr>
@@ -140,7 +140,7 @@
       {% endfor %}
     </table>
     {% else %}
-    <div class="line">今日无关注股</div>
+    <div class="line">{{ rep.date }} 无关注股</div>
     {% endif %}
     <div class="line" style="margin-top:8px"><b>盘中信号：</b>{{ sk.signals or "" }}</div>
     <div class="line"><b>风控：</b>{{ sk.risk or "" }}</div>
@@ -151,8 +151,8 @@
   </div>
 
   <div class="card">
-    <h2>次日竞价入手提示</h2>
-    <div class="line">{{ (rep.signal or {}).conditions or "次日 09:25-09:31 竞价结果出来后判定" }}</div>
+    <h2>{{ next_date }} 竞价入手提示</h2>
+    <div class="line">{{ (rep.signal or {}).conditions or (next_date + " 09:25-09:31 竞价结果出来后判定") }}</div>
   </div>
 
   <div class="card">

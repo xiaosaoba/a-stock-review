@@ -393,7 +393,7 @@ function renderTiers(md) {
   $("#tierCard").style.display = "";
   const tiers = md.lianban_tiers || [];
   if (!tiers.length) {
-    $("#tierTable").innerHTML = '<div class="board-txt">今日无涨停梯队</div>';
+    $("#tierTable").innerHTML = '<div class="board-txt">' + (rptDate() || "") + ' 无涨停梯队</div>';
     return;
   }
   const rows = [];
@@ -453,9 +453,9 @@ function renderSkill(skill, sig) {
     </div>
     <div class="skill-count">共 <b>${skill.total_first ?? 0}</b> 只首板 → 精选候选 <b>${cand.length}</b> 只 · 关注池 <b>${skill.watchlist_count ?? 0}</b> 只 · 未通过 <b>${skill.filtered_count ?? 0}</b> 只</div>
     <div class="sel-sub">① 精选候选（4 步筛选全过）</div>
-    ${table(cand, "今日无 4 步全过的首板股")}
-    <div class="sel-sub">② 关注池（3 步通过，需次日盘中信号确认）</div>
-    ${table(watch, "今日无 3 步通过的关注股")}
+    ${table(cand, (rptDate() || "") + " 无 4 步全过的首板股")}
+    <div class="sel-sub">② 关注池（3 步通过，需 ${nextDateStr()} 盘中信号确认）</div>
+    ${table(watch, (rptDate() || "") + " 无 3 步通过的关注股")}
     <div class="skill-note"><b>盘中 3 大信号：</b>${skill.signals || ""}</div>
     <div class="skill-note"><b>风控纪律：</b>${skill.risk || ""}</div>
     <div class="skill-note"><b>避坑：</b>${skill.pitfalls || ""}</div>
@@ -465,7 +465,7 @@ function renderSkill(skill, sig) {
 
 function renderSignal(sig) {
   if (!sig || !sig.ok) return;
-  let html = `<div class="skill-note"><b>次日竞价入手提示（09:25-09:31 自动刷新）：</b><br>${(sig.conditions || "").split("；").join("<br>")}</div>`;
+  let html = `<div class="skill-note"><b>${nextDateStr()} 竞价入手提示（09:25-09:31 自动刷新）：</b><br>${(sig.conditions || "").split("；").join("<br>")}</div>`;
   if (sig.mode === "live" && sig.items && sig.items.length) {
     const lv = s => s === "可入手" ? "sc-hi" : (s === "观察" ? "sc-mid" : (s === "放弃" ? "sc-bad" : "sc-low"));
     html = `<div class="skill-note" style="border:1px solid rgba(88,166,255,.3);border-radius:8px;padding:8px 10px;background:rgba(88,166,255,.06)">
@@ -494,10 +494,10 @@ function renderSelection(sel) {
     </tr>`;
   const t1 = (sel.candidates_1b || []).length
     ? `<table><tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>题材</th><th>评分</th></tr>${(sel.candidates_1b || []).map(candRow).join("")}</table>`
-    : '<div class="board-txt">今日 1 连板中无属于最强主线的个股</div>';
+    : `<div class="board-txt">${rptDate() || ""} 1 连板中无属于最强主线的个股</div>`;
   const t2 = (sel.candidates_2b || []).length
     ? `<table><tr><th>名称/代码</th><th>首封</th><th>封单</th><th>换手</th><th>题材</th><th>评分</th></tr>${(sel.candidates_2b || []).map(candRow).join("")}</table>`
-    : '<div class="board-txt">今日 2 连板中无属于最强主线的个股</div>';
+    : `<div class="board-txt">${rptDate() || ""} 2 连板中无属于最强主线的个股</div>`;
   $("#selBox").innerHTML = `
     <div class="sel-mainline">
       <div class="sel-badge">最强主线：${ml.name || "--"}</div>
@@ -514,7 +514,20 @@ function renderSelection(sel) {
     <div class="sel-rules" style="margin-top:8px">${sel.note || ""}</div>`;
 }
 
+function rptDate() {
+  return (lastReport && lastReport.market && lastReport.market.date) || "";
+}
+function nextDateStr() {
+  const d = rptDate();
+  if (!d) return "次日";
+  const p = d.split("-");
+  const dt = new Date(+p[0], +p[1] - 1, +p[2]);
+  dt.setDate(dt.getDate() + 1);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+}
+
 function renderReport(rep) {
+  lastReport = rep;
   const md = rep.market;
   renderIndexes(md.indexes);
   renderMarket(md);
@@ -525,7 +538,6 @@ function renderReport(rep) {
   renderStrategy(rep.ai);
   renderSelection(rep.selection);
   renderSkill(rep.skill_recommend, rep.signal);
-  lastReport = rep;
   $("#shareBox").classList.add("show");
 }
 
@@ -666,7 +678,7 @@ function buildPoster(rep) {
       });
       if (!skCand.length) {
         ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
-        ctx.fillText("今日无 4 步全过候选（关注池：" + (skWatch.map(w => w.name).join("、") || "无") + "）", PAD, 70);
+        ctx.fillText((rptDate() || "") + " 无 4 步全过候选（关注池：" + (skWatch.map(w => w.name).join("、") || "无") + "）", PAD, 70);
       }
     }});
   }
@@ -691,7 +703,7 @@ function buildPoster(rep) {
     });
     if (!b.list.length) {
       ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
-      ctx.fillText("今日无符合该规则的个股", PAD, 52);
+      ctx.fillText((rptDate() || "") + " 无符合该规则的个股", PAD, 52);
     }
   }}));
   // 7. 明日策略
@@ -897,7 +909,7 @@ function buildFullPoster(rep) {
     } else {
       blocks.push({ h: 30, draw: ctx => {
         ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
-        ctx.fillText("今日无符合个股", PAD, 20);
+        ctx.fillText((rptDate() || "") + " 无符合个股", PAD, 20);
       }});
     }
   });
@@ -912,7 +924,7 @@ function buildFullPoster(rep) {
         (x.turnover_rate != null ? x.turnover_rate + "%" : "--"), (x.mkt_cap ? x.mkt_cap + "亿" : "--"), x.score]);
   const skSections = [
     ["① 精选候选（4 步全过）", skCand],
-    ["② 关注池（3 步通过，待竞价确认）", skWatch],
+    ["② 关注池（3 步通过，待 " + nextDateStr() + " 竞价确认）", skWatch],
   ];
   skSections.forEach(t => {
     blocks.push({ h: 30, draw: ctx => {
@@ -925,7 +937,7 @@ function buildFullPoster(rep) {
     } else {
       blocks.push({ h: 30, draw: ctx => {
         ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif";
-        ctx.fillText("今日无", PAD, 20);
+        ctx.fillText((rptDate() || "") + " 无", PAD, 20);
       }});
     }
   });
@@ -935,7 +947,7 @@ function buildFullPoster(rep) {
   cond.forEach(s => condLines.push(...clipLines(wrapText(c0, s, colW - 10), 3)));
   blocks.push({ h: 36 + condLines.length * 20, draw: ctx => {
     ctx.fillStyle = P.accent2; ctx.font = "700 14px sans-serif";
-    ctx.fillText("次日竞价入手提示", PAD, 24);
+    ctx.fillText(nextDateStr() + " 竞价入手提示", PAD, 24);
     let yy = 50;
     condLines.forEach(l => { ctx.fillStyle = P.text2; ctx.font = "400 12px sans-serif"; ctx.fillText(l, PAD, yy); yy += 20; });
   }});
@@ -1006,7 +1018,7 @@ function copyShareText(rep) {
     parts.push("盘中信号：" + sk.signals);
     parts.push("风控：" + sk.risk);
   } else {
-    parts.push("每日荐股：今日无可用数据");
+    parts.push("每日荐股：" + (rptDate() || "") + " 无可用数据");
   }
   parts.push("",
     "核心观点：",

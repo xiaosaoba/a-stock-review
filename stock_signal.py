@@ -84,6 +84,15 @@ CONDITIONS = (
 )
 
 
+def _next_date(rep):
+    """报告日期的次日，失败返回 '次日'"""
+    try:
+        d = datetime.datetime.strptime(str(rep.get("date", "")), "%Y-%m-%d")
+        return (d + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    except Exception:
+        return "次日"
+
+
 def evaluate(rep):
     """
     对报告里的荐股候选（精选+关注池）生成竞价提示。
@@ -102,7 +111,7 @@ def evaluate(rep):
             "now": _now_hhmm(),
             "items": [],
             "conditions": CONDITIONS,
-            "hint": "当前非竞价时段（09:25-09:31 自动刷新真实竞价信号），以下为预设入手条件，次日竞价后自动更新。",
+            "hint": f"当前非竞价时段（09:25-09:31 自动刷新真实竞价信号），以下为预设入手条件，{_next_date(rep)} 竞价后自动更新。",
         }
 
     codes = [x.get("code") for x in items if x.get("code")]

@@ -452,7 +452,15 @@ def fetch_zt_reasons(date):
     if not key:
         return reasons
     try:
-        query = "今日涨停的A股" if _is_today(date) else f"{date}涨停的A股"
+        ymd = date.replace("-", "") if date else ""
+        if _is_today(date):
+            query = "今日涨停的A股"
+        elif ymd:
+            # 问财自然语言支持历史日期："2026年10月26日涨停的A股"
+            dt = datetime.datetime.strptime(ymd, "%Y%m%d")
+            query = f"{dt.year}年{dt.month}月{dt.day}日涨停的A股"
+        else:
+            query = "今日涨停的A股"
         payload = {
             "query": query,
             "page": "1",
@@ -478,7 +486,8 @@ def fetch_zt_reasons(date):
         if resp.status_code != 200:
             return reasons
         body = resp.json()
-        reason_key = f"涨停原因[{date}]"
+        # 问财字段名固定为 涨停原因[YYYYMMDD]（不含横杠）
+        reason_key = f"涨停原因[{ymd}]"
         for d in body.get("datas", []):
             code = str(d.get("股票代码", "")).split(".")[0]
             reason = d.get(reason_key, "") or ""
@@ -526,16 +535,27 @@ def _kline_metrics(kl):
 
 
 def _fetch_kline(code):
-    """腾讯前复权日K线（80日），失败返回 None"""
-    try:
-        url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={_tx_code(code)},day,,,80,qfq"
-        r = requests.get(url, headers=_headers(), timeout=15)
-        j = r.json()
-        d = j.get("data", {}).get(_tx_code(code), {})
-        kl = d.get("qfqday") or d.get("day") or []
-        return code, _kline_metrics(kl)
-    except Exception:
-        return code, None
+    """腾讯前复权日K线（80日），失败返回 (code, None, 0.0)；域名按可用性回退（部分服务器 IP 被 web.ifzq 的 WAF 拦截）"""
+    hosts = (
+        "https://ifzq.gtimg.cn/appstock/app/fqkline/get",
+        "https://proxy.finance.qq.com/ifzqgtimg/appstock/app/fqkline/get",
+        "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get",
+    )
+    param = f"param={_tx_code(code)},day,,,80,qfq"
+    for base in hosts:
+        try:
+            r = requests.get(f"{base}?{param}", headers=_headers(), timeout=12)
+            j = r.json()
+            d = j.get("data", {}).get(_tx_code(code), {})
+            kl = d.get("qfqday") or d.get("day") or []
+            km = _kline_metrics(kl)
+            if km:
+                # 最后一根 K 线 = 当日 bar，量单位"手"，与腾讯实时 today_vol 一致
+                last_vol = float(kl[-1][5]) if kl and len(kl[-1]) > 5 else 0.0
+                return code, km, last_vol
+        except Exception:
+            continue
+    return code, None, 0.0
 
 
 def fetch_stock_extra(codes):
@@ -586,12 +606,20 @@ def fetch_stock_extra(codes):
 
     # 2. 历史K线（并发，每只 1 次请求）
     with ThreadPoolExecutor(max_workers=8) as ex:
-        for code, km in ex.map(_fetch_kline, codes):
+        for code, km, last_vol in ex.map(_fetch_kline, codes):
             if km:
                 base = extra.setdefault(code, {})
                 base.update(km)
-                if "today_vol" in base and km.get("vol5"):
-                    base["vol_ratio_5d"] = round(base["today_vol"] / km["vol5"], 2)
+                tv = base.get("today_vol") or 0
+                # 实时今日量缺失（盘前/历史重生成）时，用当日 K 线量回填
+                if (not tv) and last_vol:
+                    tv = last_vol
+                    base["today_vol"] = tv
+                if km.get("vol5"):
+                    base["vol_ratio_5d"] = round(tv / km["vol5"], 2)
+                # 实时成交额缺失时估算：量(股) × 收盘价（K线/实时量单位均为股）
+                if (not (base.get("amount") or 0)) and last_vol and base.get("close"):
+                    base["amount"] = round(last_vol * base["close"], 2)
     return extra
 
 
@@ -632,11 +660,11 @@ def fetch_market_data(date):
         industry_avg = round(sum(x["change_pct"] for x in sectors["industry"]) / len(sectors["industry"]), 2)
 
     # 涨停题材（问财涨停原因）附加到涨停池，AI 据此判断市场主线
-    if is_today:
-        zt_reasons = fetch_zt_reasons(date)
-        if zt_reasons:
-            for item in zt_list:
-                item["reason"] = zt_reasons.get(item["code"], "")
+    # 问财支持历史日期自然语言查询（"YYYY年M月D日涨停的A股"），历史日期同样拉取
+    zt_reasons = fetch_zt_reasons(date)
+    if zt_reasons:
+        for item in zt_list:
+            item["reason"] = zt_reasons.get(item["code"], "")
 
     return {
         "date": date,
